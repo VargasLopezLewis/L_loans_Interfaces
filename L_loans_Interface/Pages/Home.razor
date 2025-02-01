@@ -1,0 +1,174 @@
+﻿@page "/"
+@using L_loans_Class
+@inject HttpClient Http
+@inject NavigationManager navigation
+@inject IJSRuntime JS
+@using Radzen
+
+<PageTitle>Dashboard</PageTitle>
+
+<RadzenNotification />
+
+<div class="container-fluid" style="margin-top: 40px; background-color: #f8f9fa; padding: 40px;">
+    <div class="text-center">
+        <h1 class="display-4" style="color: #007bff;">Bienvenido de Nuevo</h1>
+        <p class="lead" style="color: #6c757d;">Visualiza la información clave de tu sistema de préstamos de forma clara y rápida</p>
+        <RadzenBreadCrumb>
+            <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+            <RadzenBreadCrumbItem Icon="home" Text="Dashboard" />
+        </RadzenBreadCrumb>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <RadzenCard Title="Clientes" Style="box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                @if (clientesData != null && clientesData.Count > 0)
+                {
+                    <RadzenChart Style="height: 300px; width: 100%;">
+                        <RadzenBarSeries Data="@clientesData" Title="Clientes" CategoryProperty="Category" ValueProperty="Value">
+                            <RadzenSeriesDataLabels Visible="true" />
+                        </RadzenBarSeries>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p>No hay datos disponibles para mostrar en el gráfico de Clientes.</p>
+                }
+                <RadzenButton Text="Ver Clientes" Style="margin-top: 10px; width: 100%;" Click="@(() => navigation.NavigateTo("/getc"))" />
+            </RadzenCard>
+        </div>
+        <div class="col-md-4 mb-4">
+            <RadzenCard Title="Garantías" Style="box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                @if (garantiasData != null && garantiasData.Count > 0)
+                {
+                    <RadzenChart Style="height: 300px; width: 100%;">
+                        <RadzenBarSeries Data="@garantiasData" Title="Garantías" CategoryProperty="Category" ValueProperty="Value">
+                            <RadzenSeriesDataLabels Visible="true" />
+                        </RadzenBarSeries>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p>No hay datos disponibles para mostrar en el gráfico de Garantías.</p>
+                }
+                <RadzenButton Text="Ver Garantías" Style="margin-top: 10px; width: 100%;" Click="@(() => navigation.NavigateTo("/getg"))" />
+            </RadzenCard>
+        </div>
+        <div class="col-md-4 mb-4">
+            <RadzenCard Title="Préstamos" Style="box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                @if (prestamosData != null && prestamosData.Count > 0)
+                {
+                    <RadzenChart Style="height: 300px; width: 100%;">
+                        <RadzenBarSeries Data="@prestamosData" Title="Préstamos" CategoryProperty="Category" ValueProperty="Value">
+                            <RadzenSeriesDataLabels Visible="true" />
+                        </RadzenBarSeries>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p>No hay datos disponibles para mostrar en el gráfico de Préstamos.</p>
+                }
+                <RadzenButton Text="Ver Préstamos" Style="margin-top: 10px; width: 100%;" Click="@(() => navigation.NavigateTo("/getp"))" />
+            </RadzenCard>
+        </div>
+    </div>
+
+    <div class="text-center" style="margin-top: 40px;">
+        @if (pagosData != null && pagosData.Count > 0)
+        {
+            <RadzenChart Style="height: 400px; width: 100%;">
+                <RadzenBarSeries Data="@pagosData" CategoryProperty="Category" ValueProperty="Value">
+                    <RadzenSeriesDataLabels Visible="true" />
+                    <RadzenSeriesBar Style="fill: #007bff;" />
+                </RadzenBarSeries>
+                <RadzenChartAxis Title="Meses" Position="Bottom" Type="Category" />
+                <RadzenChartAxis Title="Monto Pagado" Position="Left" Type="Numeric" />
+            </RadzenChart>
+        }
+        else
+        {
+            <p>No hay datos disponibles para mostrar en el gráfico de pagos.</p>
+        }
+    </div>
+
+    <div class="text-center" style="margin-top: 40px;">
+        <RadzenButton Text="Actualizar Datos" Icon="refresh" Click="@RefreshData" Style="margin-right: 10px;" />
+        <RadzenButton Text="Configuración" Icon="settings" Click="@(() => navigation.NavigateTo("/setting"))" />
+    </div>
+</div>
+
+@code {
+    private List<Cliete> clientes;
+    private List<Garantium> garantias;
+    private List<Prestamo> prestamos;
+    private List<Pago> pagos;
+
+    private List<ChartData> clientesData;
+    private List<ChartData> garantiasData;
+    private List<ChartData> prestamosData;
+    private List<ChartData> pagosData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        clientes = await Http.GetFromJsonAsync<List<Cliete>>("https://localhost:7261/api/Clientes") ?? new List<Cliete>();
+        garantias = await Http.GetFromJsonAsync<List<Garantium>>("https://localhost:7261/api/Garantia") ?? new List<Garantium>();
+        prestamos = await Http.GetFromJsonAsync<List<Prestamo>>("https://localhost:7261/api/Prestamos") ?? new List<Prestamo>();
+        pagos = await Http.GetFromJsonAsync<List<Pago>>("https://localhost:7261/api/Pagos") ?? new List<Pago>();
+
+        // Inicialización de los datos de los gráficos
+        clientesData = new List<ChartData>
+        {
+            new ChartData { Category = "Clientes Activos", Value = clientes.Count(c => c.Estado == "Activo") },
+            new ChartData { Category = "Clientes Inactivos", Value = clientes.Count(c => c.Estado != "Activo" && c.Estado != null) }
+        };
+
+        garantiasData = new List<ChartData>
+        {
+            new ChartData { Category = "Garantías Activas", Value = garantias.Count(g => g.TipoDeGarantia == "Activa" && g.TipoDeGarantia != null) },
+            new ChartData { Category = "Garantías Inactivas", Value = garantias.Count(g => g.TipoDeGarantia != "Activa" && g.TipoDeGarantia != null) }
+        };
+
+        prestamosData = new List<ChartData>
+        {
+            new ChartData { Category = "Préstamos Activos", Value = prestamos.Count(p => p.Estado == "Proceso") },
+            new ChartData { Category = "Préstamos Pagados", Value = prestamos.Count(p => p.Estado == "Pagado") }
+        };
+
+        pagosData = pagos
+            .Where(p => p.FechaDePago.HasValue && p.MontoPagado.HasValue)
+            .GroupBy(p => p.FechaDePago?.ToString("yyyy-MM") ?? "Fecha desconocida")
+            .Select(g => new ChartData
+            {
+                Category = g.Key,
+                Value = g.Sum(p => p.MontoPagado.GetValueOrDefault())
+            })
+            .Where(x => x.Value > 0)
+            .ToList() ?? new List<ChartData>();
+
+        if (pagosData.Count == 0)
+        {
+            Console.WriteLine("No se encontraron datos válidos para los pagos.");
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    public class ChartData
+    {
+        public string Category { get; set; }
+        public decimal Value { get; set; }
+    }
+}
+

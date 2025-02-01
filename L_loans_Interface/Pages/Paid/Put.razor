@@ -1,0 +1,179 @@
+﻿@page "/putpp"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager navigation
+@inject NotificationService NotificationService
+@using L_loans_Class
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Pagos" />
+        <RadzenBreadCrumbItem Icon="credit_score" Text="Actualizar un Pago" />
+    </RadzenBreadCrumb>
+</div>
+
+<h3 class="text-center mb-4">Formulario de Actualización de Pago</h3>
+
+<div class="card shadow-lg p-4">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <RadzenSpinner />
+            <p>Procesando actualización, por favor espere...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="pago" OnValidSubmit="ActualizarPago">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="id" class="form-label">ID del Pago:</label>
+                    <InputNumber id="id" class="form-control" @bind-Value="pago.Id" />
+                    <ValidationMessage For="() => pago.Id" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="PId" class="form-label">ID del Préstamo:</label>
+                    <InputNumber id="PId" class="form-control" @bind-Value="pago.PId" />
+                    <ValidationMessage For="() => pago.PId" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="monto" class="form-label">Monto Pagado:</label>
+                    <CurrencyInput TValue="decimal?" Decimals="2" id="monto" class="form-control" @bind-Value="pago.MontoPagado" />
+                    <ValidationMessage For="() => pago.MontoPagado" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="fechaPago" class="form-label">Fecha de Pago:</label>
+                    <InputDate id="fechaPago" class="form-control" @bind-Value="pago.FechaDePago" />
+                    <ValidationMessage For="() => pago.FechaDePago" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="metodoPago" class="form-label">Método de Pago:</label>
+                    <RadzenDropDown @bind-Value="pago.MetodoDePago"
+                                    id="metodoPago"
+                                    class="form-control"
+                                    Data="metodosOpciones" />
+                    <ValidationMessage For="() => pago.MetodoDePago" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="text-center">
+                <RadzenButton Text="Actualizar Pago" Icon="edit" ButtonStyle="ButtonStyle.Success" Click="ConfirmarActualizacion" class="btn btn-success btn-lg" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-success btn-lg" />
+            </div>
+        </EditForm>
+    }
+
+    <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                    Data="@pagos" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedPayments Style="margin-top:40px">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Pago.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Pago.PId)" Title="ID del Prestamo" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.Id_de_pago)" Title="ID del Prestamo" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.MontoPagado)" Title="Monto Pagado" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.FechaDePago)" Title="Fecha de Pago" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.MetodoDePago)" Title="Método de Pago" Width="160px" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private Pago pago = new Pago();
+    private bool isLoading = false;
+    private List<Pago> pagos;
+    private IList<Pago> selectedPayments;
+    private List<string> metodosOpciones = new List<string> { "Tarjeta", "Efectivo" };
+    private ConfirmDialog dialog = default!;
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000);
+        PreloadService.Hide();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        await CargarPagos();
+    }
+
+    private async Task CargarPagos()
+    {
+        try
+        {
+            pagos = await Http.GetFromJsonAsync<List<Pago>>("https://localhost:7261/api/Pagos");
+            selectedPayments = new List<Pago>() { pagos.FirstOrDefault() };
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"No se pudieron cargar los datos: {ex.Message}",
+                    Duration = 5000
+                });
+        }
+    }
+
+    private async Task ConfirmarActualizacion()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea actualizar este Pago?",
+            message1: "Los cambios serán guardados en la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await ActualizarPago();
+        }
+    }
+
+    private async Task ActualizarPago()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"https://localhost:7261/api/Pagos/{pago.Id}", pago);
+            if (response.IsSuccessStatusCode)
+            {
+                ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Completado", Detail = "Pago actualizado correctamente.", Duration = 4000 });
+            }
+            else
+            {
+                ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "No se pudo completar la actualización", Duration = 4000 });
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = ex.Message, Duration = 4000 });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    private void atras()
+    {
+        navigation.NavigateTo("/getpp");
+    }
+}

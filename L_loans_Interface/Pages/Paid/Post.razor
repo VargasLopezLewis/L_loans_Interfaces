@@ -1,0 +1,221 @@
+﻿@page "/postpp"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager navigation
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@using L_loans_Class
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Pagos" />
+        <RadzenBreadCrumbItem Icon="paid" Text="Agregar un Pago" />
+    </RadzenBreadCrumb>
+</div>
+
+<h3 class="text-center mb-4">Formulario de Registro de Pago</h3>
+
+<div class="card shadow-lg p-4">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <RadzenSpinner />
+            <p>Procesando registro, por favor espere...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="nuevoPago" OnValidSubmit="EnviarFormulario">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+                    <label for="fechaPago" class="form-label">Id del Prestamo:</label>
+                    <RadzenDropDown @bind-Value="nuevoPago.PId"
+                                    id="PId"
+                                    class="form-control"
+                                    Data="@prestamos"
+                                    TextProperty="Id"
+                                    ValueProperty="Id"
+                                    AllowClear="true"
+                                    Placeholder="Seleccione un Prestamo" />
+                    <ValidationMessage For="() => nuevoPago.PId" class="text-danger" />
+                </div>
+
+             <div class="col-md-6 mb-3">
+                    <label for="idPago" class="form-label">Id de Pago:</label>
+                    <RadzenDropDown @bind-Value="nuevoPago.Id_de_pago"
+                                    id="idPago"
+                                    class="form-control"
+                                    Data="@pagosCalendario" 
+                                    TextProperty="Id"  
+                                    ValueProperty="Id"
+                                    AllowClear="true"
+                                    Placeholder="Seleccione un Id de pago" />
+                    <ValidationMessage For="() => nuevoPago.Id_de_pago" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="monto" class="form-label">Monto Pagado:</label>
+                    <CurrencyInput TValue="decimal?" Decimals="2" id="monto" class="form-control" @bind-Value="nuevoPago.MontoPagado" />
+                    <ValidationMessage For="() => nuevoPago.MontoPagado" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="fechaPago" class="form-label">Fecha de Pago:</label>
+                    <InputDate id="fechaPago" class="form-control" @bind-Value="nuevoPago.FechaDePago" />
+                    <ValidationMessage For="() => nuevoPago.FechaDePago" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="metodoPago" class="form-label">Método de Pago:</label>
+                    <RadzenDropDown @bind-Value="nuevoPago.MetodoDePago"
+                                    id="metodoPago"
+                                    class="form-control"
+                                    Data="metodosOpciones" />
+                    <ValidationMessage For="() => nuevoPago.MetodoDePago" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="text-center">
+                <RadzenButton Text="Registrar Pago" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Click="ConfirmarRegistro" class="btn btn-success btn-lg" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-success btn-lg" />
+            </div>
+        </EditForm>
+    }
+
+    <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                    Data="@prestamos" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedPrestamos Style="margin-top:40px">
+        <Columns>
+
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.CId)" Title="ID de Cliente" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Monto)" Title="Monto" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Interes)" Title="Interés" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.FechaDeInicio)" Title="Fecha de Inicio" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.DuracionDelPrestamo)" Title="Duración" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Estado)" Title="Estado" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Deuda_Restante)" Title="Deuda Restante" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Mora)" Title="Mora" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Tipo_de_cuota)" Title="Tipo de Cuota" Width="120px" />
+
+        </Columns>
+    </RadzenDataGrid>
+
+</div>
+
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private Pago nuevoPago = new Pago();
+    private bool isLoading = false;
+    private List<Prestamo> prestamos;
+    private IList<Prestamo> selectedPrestamos;
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+    private List<string> metodosOpciones = new List<string> { "Tarjeta", "Efectivo" };
+    private List<Pago> pagosCalendario = new List<Pago>(); 
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    private async Task CargarPagosCalendario()
+    {
+        pagosCalendario = await Http.GetFromJsonAsync<List<Pago>>($"https://localhost:7261/api/CalendarioPagos/api/PagosCalendario?Id={nuevoPago.PId}");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        prestamos = await Http.GetFromJsonAsync<List<Prestamo>>("https://localhost:7261/api/Prestamos");
+    }
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task ConfirmarRegistro()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea Ingresar este Pago?",
+            message1: "Este Pago será agregado a la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await EnviarFormulario();
+            await CargarDatos();
+        }
+        else
+        {
+            // Acción si se cancela la confirmación
+        }
+    }
+
+    private async Task EnviarFormulario()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7261/api/Pagos", nuevoPago);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Obtener el archivo PDF de la respuesta
+                var pdfContent = await response.Content.ReadAsByteArrayAsync();
+
+                // Crear un enlace para descargar el archivo PDF
+                var fileUrl = $"data:application/pdf;base64,{Convert.ToBase64String(pdfContent)}";
+
+                // Crear un enlace de descarga y simular el clic para descargar el archivo
+                var anchorElement = new ElementReference();
+                await JSRuntime.InvokeVoidAsync("eval", $"var link = document.createElement('a'); link.href = '{fileUrl}'; link.download = 'FacturaPago.pdf'; link.click();");
+
+                ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Completado", Detail = "Pago registrado y factura generada.", Duration = 4000 });
+                ResetForm();
+            }
+            else
+            {
+                ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "No se pudo completar el registro", Duration = 4000 });
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = ex.Message, Duration = 4000 });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetForm()
+    {
+        nuevoPago = new Pago();
+    }
+
+    private void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    private void atras()
+    {
+        navigation.NavigateTo("/getpp");
+    }
+}

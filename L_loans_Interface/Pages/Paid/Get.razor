@@ -1,0 +1,86 @@
+﻿@page "/getpp"
+@using L_loans_Class
+@inject HttpClient Http
+@inject NavigationManager navigation
+<PageTitle>Pagos</PageTitle>
+@inject IJSRuntime JS
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Icon="payments" Text="Tabla de Pagos" />
+    </RadzenBreadCrumb>
+</div>
+
+<h1>Tabla de Pagos</h1>
+
+<RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                Data="@pagos" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedPayments Style="margin-top:40px">
+    <Columns>
+        <RadzenDataGridColumn Property="@nameof(Pago.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn Property="@nameof(Pago.PId)" Title="ID del Prestamo" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Pago.Id_de_pago)" Title="ID del Prestamo" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Pago.MontoPagado)" Title="Monto Pagado" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Pago.FechaDePago)" Title="Fecha de Pago" FormatString="{0:d}" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Pago.MetodoDePago)" Title="Método de Pago" Width="160px" />
+    </Columns>
+</RadzenDataGrid>
+
+<RadzenButton Style="margin-top:40px;" Text="Agregar un Pago" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Click="Agregar" />
+<RadzenButton Style="margin-top:40px;" Text="Eliminar un Pago" Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="Eliminar" />
+<RadzenButton Style="margin-top:40px;" Text="Actualizar un Pago" Icon="refresh" ButtonStyle="ButtonStyle.Primary" Click="Actualizar" />
+<RadzenButton Style="margin-top:40px;" Text="Descargar Excel" Icon="Table_View" ButtonStyle="ButtonStyle.Success" Click="DescargarExcel" />
+<RadzenButton Style="margin-top:40px; margin-left:400px" Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="@(() => navigation.NavigateTo("/"))" />
+
+@code {
+    private List<Pago> pagos;
+    private IList<Pago> selectedPayments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        pagos = await Http.GetFromJsonAsync<List<Pago>>("https://localhost:7261/api/Pagos");
+        selectedPayments = new List<Pago>() { pagos.FirstOrDefault() };
+    }
+
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+
+    private void Eliminar()
+    {
+        navigation.NavigateTo("/deletep");
+    }
+
+    private void Agregar()
+    {
+        navigation.NavigateTo("/postp");
+    }
+
+    private void Actualizar()
+    {
+        navigation.NavigateTo("/putpp");
+    }
+
+    private async Task DescargarExcel()
+    {
+        var response = await Http.GetAsync("https://localhost:7261/api/Pagos/DescargarExcel");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var fileContent = await response.Content.ReadAsByteArrayAsync();
+            var fileName = "Pagos.xlsx";
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            var fileUrl = $"data:{contentType};base64,{Convert.ToBase64String(fileContent)}";
+            await JS.InvokeVoidAsync("downloadFile", fileUrl, fileName);
+        }
+    }
+}

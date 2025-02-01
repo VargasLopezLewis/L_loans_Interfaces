@@ -1,0 +1,180 @@
+﻿@page "/deletepp"
+@inject HttpClient Http
+@inject NavigationManager navigate
+@inject NotificationService NotificationService
+@using L_loans_Class
+@using Radzen
+@using BlazorBootstrap
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Pagos" />
+        <RadzenBreadCrumbItem Icon="credit_card_off" Text="Eliminar un Pago" />
+    </RadzenBreadCrumb>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
+        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+        <span class="ms-3">Procesando, por favor espere...</span>
+    </div>
+}
+else
+{
+    <EditForm Model="form" OnValidSubmit="(() => DeletePago(form.Id))">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="Id" class="form-label">Id del Pago:</label>
+                <InputNumber id="Id" class="form-control" @bind-Value="form.Id" />
+                <ValidationMessage For="() => form.Id" class="text-danger" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <RadzenButton Text="Eliminar Pago" Style="margin-top:33px" Icon="delete" ButtonStyle="ButtonStyle.Success" Click="ConfirmarRegistro" class="btn btn-danger btn-lg" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" Style="margin-top:33px" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-primary btn-lg" />
+            </div>
+        </div>
+    </EditForm>
+
+    <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                    Data="@pagos" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedPayments Style="margin-top:40px">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Pago.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Pago.PId)" Title="ID del Prestamo" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.Id_de_pago)" Title="ID del Prestamo" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.MontoPagado)" Title="Monto Pagado" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.FechaDePago)" Title="Fecha de Pago" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Pago.MetodoDePago)" Title="Método de Pago" Width="160px" />
+        </Columns>
+    </RadzenDataGrid>
+}
+
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private Pago form = new Pago();
+    private List<Pago> pagos;
+    private IList<Pago> selectedPayments;
+    private bool isLoading = false;
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000);
+        PreloadService.Hide();
+    }
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task ConfirmarRegistro()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea Eliminar este Registro?",
+            message1: "Este Registro será Eliminado de la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await DeletePago(form.Id);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        await CargarPagos();
+    }
+
+    private async Task CargarPagos()
+    {
+        try
+        {
+            pagos = await Http.GetFromJsonAsync<List<Pago>>("https://localhost:7261/api/Pagos");
+            selectedPayments = new List<Pago>() { pagos.FirstOrDefault() };
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"No se pudieron cargar los datos: {ex.Message}",
+                    Duration = 5000
+                });
+        }
+    }
+
+    private async Task DeletePago(int pagoId)
+    {
+        if (pagoId <= 0)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Error",
+                    Detail = "Debe proporcionar un ID válido para eliminar.",
+                    Duration = 4000
+                });
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7261/api/Pagos?iD={pagoId}");
+            if (response.IsSuccessStatusCode)
+            {
+                ShowNotification(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Éxito",
+                        Detail = "Pago eliminado correctamente.",
+                        Duration = 4000
+                    });
+                await CargarPagos();
+            }
+            else
+            {
+                ShowNotification(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = $"No se pudo eliminar el pago. Código de estado: {response.StatusCode}",
+                        Duration = 5000
+                    });
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"Ocurrió un error al intentar eliminar el pago: {ex.Message}",
+                    Duration = 5000
+                });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    private void atras()
+    {
+        navigate.NavigateTo("/getp");
+    }
+}

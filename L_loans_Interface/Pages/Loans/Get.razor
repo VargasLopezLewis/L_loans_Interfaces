@@ -1,0 +1,95 @@
+﻿@page "/getp"
+@using L_loans_Class
+@inject HttpClient Http
+@inject NavigationManager navigation
+<PageTitle>Prestamos</PageTitle>
+@inject IJSRuntime JS
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Icon="account_balance" Text="Tabla de Prestamos" />
+    </RadzenBreadCrumb>
+</div>
+
+<h1>Tabla de Prestamos</h1>
+
+<RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                Data="@prestamos" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedPrestamos Style="margin-top:40px">
+    <Columns>
+
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.CId)" Title="ID de Cliente" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Monto)" Title="Monto" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Interes)" Title="Interés" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.FechaDeInicio)" Title="Fecha de Inicio" FormatString="{0:d}" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.DuracionDelPrestamo)" Title="Duración" FormatString="{0:d}" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Estado)" Title="Estado" Width="120px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Deuda_Restante)" Title="Deuda Restante" Width="120px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Mora)" Title="Mora" Width="120px" />
+        <RadzenDataGridColumn Property="@nameof(Prestamo.Tipo_de_cuota)" Title="Tipo de Cuota" Width="120px" />
+
+    </Columns>
+</RadzenDataGrid>
+
+<RadzenButton Style="margin-top:40px;" Text="Agregar un Prestamo" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Click="Agregar" />
+<RadzenButton Style="margin-top:40px;" Text="Eliminar un Prestamo" Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="Eliminar" />
+<RadzenButton Style="margin-top:40px;" Text="Actualizar un Prestamo" Icon="refresh" ButtonStyle="ButtonStyle.Primary" Click="Actualizar" />
+<RadzenButton Style="margin-top:40px;" Text="Descargar Excel" Icon="Table_View" ButtonStyle="ButtonStyle.Success" Click="DescargarExcel" />
+<RadzenButton Style="margin-top:40px; margin-left:400px" Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="@(() => navigation.NavigateTo("/"))" />
+
+@code {
+    private List<Prestamo> prestamos;
+    private IList<Prestamo> selectedPrestamos;
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        prestamos = await Http.GetFromJsonAsync<List<Prestamo>>("https://localhost:7261/api/Prestamos");
+
+        selectedPrestamos = new List<Prestamo>() { prestamos.FirstOrDefault() };
+    }
+
+    private void Eliminar()
+    {
+        navigation.NavigateTo("/deletep");
+    }
+
+    private void Agregar()
+    {
+        navigation.NavigateTo("/postp");
+    }
+
+    private void Actualizar()
+    {
+        navigation.NavigateTo("/putp");
+    }
+
+    private async Task DescargarExcel()
+    {
+        var response = await Http.GetAsync("https://localhost:7261/api/Prestamos/DescargarExcel");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var fileContent = await response.Content.ReadAsByteArrayAsync();
+
+            var fileName = "Prestamos.xlsx";
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            var fileUrl = $"data:{contentType};base64,{Convert.ToBase64String(fileContent)}";
+            await JS.InvokeVoidAsync("downloadFile", fileUrl, fileName);
+        }
+        else
+        {
+            Console.WriteLine("Error al descargar el archivo Excel.");
+        }
+    }
+}

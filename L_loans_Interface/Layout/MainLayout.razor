@@ -1,0 +1,72 @@
+﻿@inherits LayoutComponentBase
+@using BlazorBootstrap
+
+<Preload LoadingText="Loading..." />
+
+<BlazorBootstrapLayout >
+    <HeaderSection>
+        <ThemeSwitcher Class="ps-3 ps-lg-2" />
+    </HeaderSection>
+
+    <SidebarSection>
+            <Sidebar2 Href="/"
+                      IconName="IconName.CCircleFill"
+                      Title="Credi Express"
+                      Style="font-size:18px"
+                      DataProvider="Sidebar2DataProvider" />
+                      
+
+    </SidebarSection>
+
+    <ContentSection>
+        @Body
+    </ContentSection>
+
+    <FooterSection>
+        CrediExpress
+    </FooterSection>
+</BlazorBootstrapLayout>
+
+@code {
+    private IEnumerable<NavItem> navItems = default!;
+
+    private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
+    {
+        if (navItems is null)
+            navItems = GetNavItems();
+
+        return await Task.FromResult(request.ApplyTo(navItems));
+    }
+
+    private IEnumerable<NavItem> GetNavItems()
+    {
+        navItems = new List<NavItem>
+        {
+            new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Inicio", Match = NavLinkMatch.All },
+            new NavItem { Id = "2", IconName = IconName.Person, Text = "Clientes" },
+            new NavItem { Id = "3", Href = "/getc", IconName = IconName.PersonLinesFill, Text = "Tabla de Clientes", ParentId = "2" },
+            new NavItem { Id = "4", Href = "/postc", IconName = IconName.PersonAdd, Text = "Agregar un Cliente", ParentId = "2" },
+            new NavItem { Id = "5", Href = "/deletec", IconName = IconName.PersonFillSlash, Text = "Eliminar un Cliente", ParentId = "2" },
+            new NavItem { Id = "6", Href = "/putc", IconName = IconName.PersonGear, Text = "Actualizar un Cliente", ParentId = "2" },
+            new NavItem { Id = "7", Href = "/getp", IconName = IconName.Table, Text = "Préstamos" },
+            new NavItem { Id = "8", Href = "/getp", IconName = IconName.Bank, Text = "Tabla de Préstamos", ParentId = "7" },
+            new NavItem { Id = "9", Href = "/postp", IconName = IconName.Cash, Text = "Agregar un Préstamo", ParentId = "7" },
+            new NavItem { Id = "10", Href = "/deletep", IconName = IconName.Trash, Text = "Eliminar un Préstamo", ParentId = "7" },
+            new NavItem { Id = "11", Href = "/putp", IconName = IconName.Gear, Text = "Actualizar un Préstamo", ParentId = "7" },
+            new NavItem { Id = "13", Href = "/calendario-pagos", IconName = IconName.Calendar2Date, Text = "Calendario de Pagos", ParentId = "7" },
+            new NavItem { Id = "12", IconName = IconName.Table, Text = "Pagos" },
+            new NavItem { Id = "13", Href = "/getpp", IconName = IconName.Cash, Text = "Tabla de Pagos", ParentId = "12" },
+            new NavItem { Id = "14", Href = "/postpp", IconName = IconName.Coin, Text = "Agregar un Pago", ParentId = "12" },
+            new NavItem { Id = "15", Href = "/deletepp", IconName = IconName.Trash, Text = "Eliminar un Pago", ParentId = "12" },
+            new NavItem { Id = "16", Href = "/putpp", IconName = IconName.Gear, Text = "Actualizar un Pago", ParentId = "12" },
+            new NavItem { Id = "17", IconName = IconName.Table, Text = "Garantías" },
+            new NavItem { Id = "18", Href = "/getg", IconName = IconName.BoxSeam, Text = "Tabla de Garantías", ParentId = "17" },
+            new NavItem { Id = "19", Href = "/postg", IconName = IconName.CarFront, Text = "Agregar una Garantía", ParentId = "17" },
+            new NavItem { Id = "20", Href = "/deleteg", IconName = IconName.Trash, Text = "Eliminar una Garantía", ParentId = "17" },
+            new NavItem { Id = "21", Href = "/putg", IconName = IconName.Gear, Text = "Actualizar una Garantía", ParentId = "17" },
+            new NavItem { Id = "22", Href = "/setting", IconName = IconName.GearWideConnected, Text = "Configuración" }
+        };
+
+        return navItems;
+    }
+}

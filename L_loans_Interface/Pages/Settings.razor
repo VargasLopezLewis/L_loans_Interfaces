@@ -1,0 +1,70 @@
+﻿@page "/setting"
+@using Radzen
+@inject IJSRuntime JS
+@inject NavigationManager navigation
+
+<PageTitle>Configuración</PageTitle>
+
+<RadzenNotification />
+
+<div class="container" style="margin-top: 40px;">
+    <div class="text-center">
+        <h1 class="display-4" style="color: #007bff;">Configuración del Proyecto</h1>
+        <p class="lead" style="color: #6c757d;">Ajusta las configuraciones según las necesidades del sistema.</p>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <RadzenCard Title="Configuración General" Style="box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                <RadzenTextBox @bind-Value="config.NombreProyecto" Placeholder="Nombre del Proyecto" Style="width: 100%;" />
+                <RadzenTextBox @bind-Value="config.VersionProyecto" Placeholder="Versión del Proyecto" Style="width: 100%; margin-top: 10px;" />
+                <RadzenDropDown @bind-Value="config.TipoDeConexion" Data="@(new string[] { "SQL Server", "MySQL", "PostgreSQL" })" Placeholder="Seleccionar tipo de base de datos" Style="width: 100%; margin-top: 10px;" />
+
+                <div class="mt-4">
+                    <RadzenButton Text="Guardar Configuración" Icon="save" Click="GuardarConfiguracion" Style="width: 100%;" />
+                </div>
+            </RadzenCard>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Sección de API -->
+        <div class="col-md-12">
+            <RadzenCard Title="Configuración de API" Style="box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                <RadzenTextBox @bind-Value="config.ApiBaseUrl" Placeholder="URL de la API" Style="width: 100%;" />
+                <RadzenButton Text="Probar Conexión API" Icon="check_circle" Click="ProbarConexionApi" Style="width: 100%; margin-top: 10px;" />
+            </RadzenCard>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Simulación de un modelo de configuración
+    private ConfiguracionModel config = new ConfiguracionModel
+        {
+            NombreProyecto = "Sistema de Préstamos",
+            VersionProyecto = "1.0.0",
+            TipoDeConexion = "SQL Server",
+            ApiBaseUrl = "https://localhost:7261/api/"
+        };
+
+    private async Task GuardarConfiguracion()
+    {
+        // Aquí puedes agregar la lógica para guardar la configuración (ej. API, base de datos, etc.)
+        await JS.InvokeVoidAsync("alert", "Configuración guardada exitosamente.");
+    }
+
+    private async Task ProbarConexionApi()
+    {
+        // Aquí puedes agregar la lógica para probar la conexión con la API
+        await JS.InvokeVoidAsync("alert", "Conexión API exitosa.");
+    }
+
+    public class ConfiguracionModel
+    {
+        public string NombreProyecto { get; set; }
+        public string VersionProyecto { get; set; }
+        public string TipoDeConexion { get; set; }
+        public string ApiBaseUrl { get; set; }
+    }
+}

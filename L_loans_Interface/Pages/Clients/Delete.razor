@@ -1,0 +1,188 @@
+﻿@page "/deletec"
+@inject HttpClient Http
+@inject NavigationManager navigate
+@inject NotificationService NotificationService
+@using L_loans_Class
+@using Radzen
+@using BlazorBootstrap
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getc" Text="Tabla de Clientes" />
+        <RadzenBreadCrumbItem Icon="Person_Remove" Text="Eliminar un Cliente" />
+    </RadzenBreadCrumb>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
+        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+        <span class="ms-3">Procesando, por favor espere...</span>
+    </div>
+}
+else
+{
+    <EditForm Model="form" OnValidSubmit="(() => DeleteCliente(form.Id))">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="Id" class="form-label">Id del Cliente:</label>
+                <InputNumber id="Id" class="form-control" @bind-Value="form.Id" />
+                <ValidationMessage For="() => form.Id" class="text-danger" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <RadzenButton Text="Eliminar Cliente" Style="margin-top:33px" Icon="delete" ButtonStyle="ButtonStyle.Success" Click="ConfirmarRegistro" class="btn btn-danger btn-lg" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" Style="margin-top:33px" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-primary btn-lg" />
+            </div>
+        </div>
+    </EditForm>
+
+    <RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                    Data="@clientes" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedEmployees Style="margin-top:40px">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Cliete.Id)" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CNombre)" Title="Nombre" Frozen="true" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CApellidos)" Title="Apellidos" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CEdad)" Title="Edad" Width="200px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CCedula)" Title="Cédula" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CNumeroDeTelefono)" Title="Número de Teléfono" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.CFechaDeRegistro)" Title="Fecha de Registro" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.C_Descripcion)" Title="Descripción" Width="200px" />
+            <RadzenDataGridColumn Property="@nameof(Cliete.Estado)" Title="Estado" Width="200px" />
+        </Columns>
+    </RadzenDataGrid>
+}
+
+<ConfirmDialog @ref="dialog" />
+
+
+@code {
+    private Cliete form = new Cliete();
+    private List<Cliete> clientes;
+    private IList<Cliete> selectedEmployees;
+    private bool isLoading = false;
+
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task ConfirmarRegistro()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea Actualizar este cliente?",
+            message1: "Este cliente será Actualizado a la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await DeleteCliente(form.Id);
+        }
+        else
+        {
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        await CargarClientes();
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            clientes = await Http.GetFromJsonAsync<List<Cliete>>("https://localhost:7261/api/Clientes");
+            selectedEmployees = new List<Cliete>() { clientes.FirstOrDefault() };
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"No se pudieron cargar los datos: {ex.Message}",
+                    Duration = 5000
+                });
+        }
+    }
+
+    private async Task DeleteCliente(int clienteId)
+    {
+        if (clienteId <= 0)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Error",
+                    Detail = "Debe proporcionar un ID válido para eliminar.",
+                    Duration = 4000
+                });
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7261/api/Clientes?iD={clienteId}");
+            if (response.IsSuccessStatusCode)
+            {
+                ShowNotification(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Éxito",
+                        Detail = "Cliente eliminado correctamente.",
+                        Duration = 4000
+                    });
+                await CargarClientes(); // Refresca la lista de clientes
+            }
+            else
+            {
+                ShowNotification(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = $"No se pudo eliminar el cliente. Código de estado: {response.StatusCode}",
+                        Duration = 5000
+                    });
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"Ocurrió un error al intentar eliminar el cliente: {ex.Message}",
+                    Duration = 5000
+                });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    private void atras()
+    {
+        navigate.NavigateTo("/getc");
+    }
+}

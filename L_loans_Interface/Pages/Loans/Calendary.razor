@@ -1,0 +1,75 @@
+﻿@page "/calendario-pagos"
+@inject HttpClient Http
+@using Radzen
+@using Radzen.Blazor
+@using System.Net.Http.Json
+@using System.Collections.Generic
+@using System.Threading.Tasks
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Prestamos" />
+        <RadzenBreadCrumbItem Icon="pending_actions" Text="Calendario de Pagos" />
+    </RadzenBreadCrumb>
+</div>
+
+<h3>Calendario de Pagos</h3>
+
+<RadzenScheduler @ref=@scheduler
+                 Data="@calendarioPagos"
+                 TItem="CalendarioPagos"
+                 StartProperty="Fecha_Pago"
+                 EndProperty="Fecha_Pago"
+                 TextProperty="Estado"
+                 style="height: 768px;"
+                 ShowHeader="true">
+    <RadzenDayView />
+    <RadzenWeekView />
+    <RadzenMonthView />
+</RadzenScheduler>
+
+@if (calendarioPagos?.Any() == true)
+{
+    <RadzenDataGrid Data="@calendarioPagos"
+                    TItem="CalendarioPagos"
+                    ColumnWidth="200px"
+                    PageSize="5"
+                    AllowPaging="true">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(CalendarioPagos.PId)" Title="ID del Prestamo" Width="160px" />
+            <RadzenDataGridColumn TItem="CalendarioPagos" Property="Fecha_Pago" Title="Fecha de Pago" />
+            <RadzenDataGridColumn TItem="CalendarioPagos" Property="Estado" Title="Estado" />
+        </Columns>
+    </RadzenDataGrid>
+}
+else
+{
+    <p>Cargando datos...</p>
+}
+
+@code {
+    private List<CalendarioPagos> calendarioPagos;
+    private RadzenScheduler<CalendarioPagos> scheduler;  // Cambié esto
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+
+        await ShowLoadingDataAsync();
+        calendarioPagos = await Http.GetFromJsonAsync<List<CalendarioPagos>>("https://localhost:7261/api/CalendarioPagos");
+    }
+
+    public class CalendarioPagos
+    {
+        public int P_ID { get; set; }
+        public DateTime Fecha_Pago { get; set; }
+        public string Estado { get; set; }
+    }
+}

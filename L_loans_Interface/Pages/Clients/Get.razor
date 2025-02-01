@@ -1,0 +1,99 @@
+﻿@page "/getc"
+@using L_loans_Class
+@inject HttpClient Http
+@inject NavigationManager navigation
+<PageTitle>Clientes</PageTitle>
+@inject IJSRuntime JS
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Icon="Person" Text="Tabla de Clientes" />
+    </RadzenBreadCrumb>
+</div>
+
+<h1>Tabla de Clientes</h1>
+
+<RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                Data="@clientes" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value=@selectedEmployees Style="margin-top:40px">
+    <Columns>
+
+        <RadzenDataGridColumn Property="@nameof(Cliete.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.CNombre)" Title="Nombre" Frozen="true" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.CApellidos)" Title="Apellidos" Width="160px"/>
+        <RadzenDataGridColumn Property="@nameof(Cliete.CEdad)" Title="Edad" Width="200px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.CCedula)" Title="Cedula" Width="120px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.CNumeroDeTelefono)" Title="Numero de Telefono" FormatString="{0:d}" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.CFechaDeRegistro)" Title="Fecha del Registro" FormatString="{0:d}" Width="160px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.C_Descripcion)" Title="Descripcion" Width="200px" />
+        <RadzenDataGridColumn Property="@nameof(Cliete.Estado)" Title="Estado" Width="200px" />
+
+    </Columns>
+</RadzenDataGrid>
+
+<RadzenButton Style="margin-top:40px;" Text="Agregar un Cliente" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Click="Agregar" />
+<RadzenButton Style="margin-top:40px;" Text="Eliminar un Cliente" Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="Eliminar" />
+<RadzenButton Style="margin-top:40px;" Text="Actualizar un Cliente" Icon="refresh" ButtonStyle="ButtonStyle.Primary" Click="Actualizar" />
+<RadzenButton Style="margin-top:40px;" Text="Descargar Excel" Icon="Table_View" ButtonStyle="ButtonStyle.Success" Click="DescargarExcel" />
+<RadzenButton Style="margin-top:40px; margin-left:400px" Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="@(() => navigation.NavigateTo("/"))" />
+
+@code {
+    private List<Cliete> clientes;
+    private IList<Cliete> selectedEmployees;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        clientes = await Http.GetFromJsonAsync<List<Cliete>>("https://localhost:7261/api/Clientes");
+
+        selectedEmployees = new List<Cliete>() { clientes.FirstOrDefault() };
+
+    }
+
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    private void Eliminar()
+    {
+        navigation.NavigateTo("/deletec");
+    }
+
+    private void Agregar()
+    {
+        navigation.NavigateTo("/postc");
+    }
+
+    private void Actualizar()
+    {
+        navigation.NavigateTo("/putc");
+    }
+
+    private async Task DescargarExcel()
+    {
+        var response = await Http.GetAsync("https://localhost:7261/api/Clientes/DescargarExcel");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var fileContent = await response.Content.ReadAsByteArrayAsync();
+
+            var fileName = "Clientes.xlsx";
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            var fileUrl = $"data:{contentType};base64,{Convert.ToBase64String(fileContent)}";
+            await JS.InvokeVoidAsync("downloadFile", fileUrl, fileName);
+        }
+        else
+        {
+            Console.WriteLine("Error al descargar el archivo Excel.");
+        }
+    }
+
+}

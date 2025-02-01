@@ -1,0 +1,238 @@
+﻿@page "/putp"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager navigate
+@inject NotificationService NotificationService
+@using L_loans_Class
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Préstamos" />
+        <RadzenBreadCrumbItem Icon="Settings" Text="Actualizar un Préstamo" />
+    </RadzenBreadCrumb>
+</div>
+
+<h3 class="text-center mb-4">Actualizar Préstamo</h3>
+
+<div class="card shadow-lg p-4">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <RadzenSpinner />
+            <p>Procesando actualización, por favor espere...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="nuevoPrestamo" OnValidSubmit="EnviarFormulario">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="id" class="form-label">ID:</label>
+                    <InputNumber id="id" class="form-control" @bind-Value="nuevoPrestamo.Id" />
+                    <ValidationMessage For="() => nuevoPrestamo.Id" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="cid" class="form-label">Cliente ID:</label>
+                    <InputNumber id="cid" class="form-control" @bind-Value="nuevoPrestamo.CId" />
+                    <ValidationMessage For="() => nuevoPrestamo.CId" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="monto" class="form-label">Monto:</label>
+                    <CurrencyInput id="monto" Decimals="2" class="form-control" @bind-Value="nuevoPrestamo.Monto" />
+                    <ValidationMessage For="() => nuevoPrestamo.Monto" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="interes" class="form-label">Interés:</label>
+                    <CurrencyInput id="interes"
+                                   class="form-control"
+                                   @bind-Value="nuevoPrestamo.Interes"
+                                   Decimals="2"
+                                   Culture="CultureInfo.CurrentCulture" />
+                    <ValidationMessage For="() => nuevoPrestamo.Interes" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="fechaInicio" class="form-label">Fecha de Inicio:</label>
+                    <InputDate id="fechaInicio" class="form-control" @bind-Value="nuevoPrestamo.FechaDeInicio" />
+                    <ValidationMessage For="() => nuevoPrestamo.FechaDeInicio" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="duracion" class="form-label">Duración del Préstamo:</label>
+                    <InputDate id="duracion" class="form-control" @bind-Value="nuevoPrestamo.DuracionDelPrestamo" />
+                    <ValidationMessage For="() => nuevoPrestamo.DuracionDelPrestamo" class="text-danger" />
+                </div>
+
+                <div class="col-12 mb-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <RadzenDropDown @bind-Value="nuevoPrestamo.Estado"
+                                    Data="estadoOpciones"
+                                    Class="form-control"
+                                    Placeholder="Seleccionar Estado">
+                    </RadzenDropDown>
+                    <ValidationMessage For="() => nuevoPrestamo.Estado" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="monto" class="form-label">Deuda Restante:</label>
+                    <InputNumber id="monto" class="form-control" @bind-Value="nuevoPrestamo.Deuda_Restante" />
+                    <ValidationMessage For="() => nuevoPrestamo.Deuda_Restante" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="interes" class="form-label">Mora:</label>
+                    <InputNumber id="interes" class="form-control" @bind-Value="nuevoPrestamo.Mora" />
+                    <ValidationMessage For="() => nuevoPrestamo.Mora" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="tpiodecuta" class="form-label">Tipo de Cuota:</label>
+                    <RadzenDropDown @bind-Value="nuevoPrestamo.Tipo_de_cuota"
+                                    Data="cuotaOpciones"
+                                    Class="form-control"
+                                    Placeholder="Seleccionar Tipo de Cuota">
+                                </RadzenDropDown>
+                    <ValidationMessage For="() => nuevoPrestamo.Tipo_de_cuota" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="text-center">
+                <RadzenButton Text="Actualizar Préstamo" Icon="edit" ButtonStyle="ButtonStyle.Success" Click="ConfirmarRegistro" class="btn btn-success btn-lg" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-danger btn-lg" />
+            </div>
+        </EditForm>
+    }
+
+    <RadzenDataGrid Data="@prestamos" AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false" FilterMode="FilterMode.Advanced" AllowSorting="true" PageSize="5" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Left" ShowPagingSummary="true"
+                    ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or" SelectionMode="DataGridSelectionMode.Single" @bind-Value="@selectedPrestamo" Style="margin-top:40px">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Id)" Filterable="false" Title="ID" Frozen="true" Width="80px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.CId)" Title="Cliente ID" Frozen="true" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Monto)" Title="Monto" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Interes)" Title="Interés" Width="200px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.FechaDeInicio)" Title="Fecha de Inicio" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.DuracionDelPrestamo)" Title="Duración" FormatString="{0:d}" Width="160px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Estado)" Title="Estado" Width="200px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Deuda_Restante)" Title="Deuda Restante" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Mora)" Title="Mora" Width="120px" />
+            <RadzenDataGridColumn Property="@nameof(Prestamo.Tipo_de_cuota)" Title="Tipo de Cuota" Width="120px" />
+            <RadzenDataGridColumn TItem="Prestamo">
+                <Template Context="prestamo">
+                    <RadzenButton Text="Seleccionar" ButtonStyle="ButtonStyle.Info" Click="() => SeleccionarPrestamo(prestamo)" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+
+</div>
+
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private Prestamo nuevoPrestamo = new Prestamo();
+    private bool isLoading = false;
+    private List<Prestamo> prestamos;
+    private IList<Prestamo> selectedPrestamo;
+    private List<string> estadoOpciones = new List<string> { "Atrasado", "Pagado", "Proceso" };
+    private List<string> cuotaOpciones = new List<string> { "Diario", "Semanal", "Mensual" };
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        prestamos = await Http.GetFromJsonAsync<List<Prestamo>>("https://localhost:7261/api/Prestamos");
+    }
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task ConfirmarRegistro()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea Actualizar este Registro?",
+            message1: "Este Registro será Actualizado a la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await EnviarFormulario();
+        }
+        else
+        {
+
+        }
+    }
+
+    private async Task EnviarFormulario()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (nuevoPrestamo == null || nuevoPrestamo.Id == 0 || nuevoPrestamo.CId == null || nuevoPrestamo.Monto == null || nuevoPrestamo.FechaDeInicio == null || nuevoPrestamo.DuracionDelPrestamo == null)
+            {
+                ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Revise el registro y compruebe los datos", Duration = 4000 });
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"https://localhost:7261/api/Prestamos?iD={nuevoPrestamo.Id}", nuevoPrestamo);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    ResetForm();
+                    ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Completado", Detail = "Registro actualizado correctamente", Duration = 4000 });
+                }
+                else
+                {
+                    ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "No se pudo completar la actualización", Duration = 4000 });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = ex.Message, Duration = 4000 });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetForm()
+    {
+        nuevoPrestamo = new Prestamo();
+    }
+
+    private void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    private void atras()
+    {
+        navigate.NavigateTo("/getp");
+    }
+
+    private void SeleccionarPrestamo(Prestamo prestamo)
+    {
+        nuevoPrestamo = prestamo;  
+    }
+}

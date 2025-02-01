@@ -1,0 +1,265 @@
+﻿@page "/postp"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager navigate
+@inject NotificationService NotificationService
+@using L_loans_Class
+
+<RadzenNotification />
+
+<div class="rz-m-12">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/" Text="Inicio" />
+        <RadzenBreadCrumbItem Path="/getp" Text="Tabla de Prestamos" />
+        <RadzenBreadCrumbItem Icon="Payments" Text="Agregar un Prestamo" />
+    </RadzenBreadCrumb>
+</div>
+
+<h3 class="text-center mb-4">Formulario de Registro de Prestamo</h3>
+
+<div class="card shadow-lg p-4">
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <RadzenSpinner />
+            <p>Procesando registro, por favor espere...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="nuevoPrestamo" OnValidSubmit="EnviarFormulario">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="CId" class="form-label">Cliente:</label>
+                    <RadzenDropDown @bind-Value="nuevoPrestamo.CId"
+                                    Data="clientesConNombres"
+                                    TextProperty="NombreCompleto"
+                                    ValueProperty="Id"
+                                    Class="form-control"
+                                    Placeholder="Seleccionar Cliente"
+                                    Change="OnClienteSeleccionado" />
+                    <ValidationMessage For="() => nuevoPrestamo.CId" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="monto" class="form-label">Monto:</label>
+                    <CurrencyInput id="monto" Decimals="2"class="form-control" @bind-Value="nuevoPrestamo.Monto" @oninput="CalcularInteres" Disabled="@formDeshabilitado" />
+                    <ValidationMessage For="() => nuevoPrestamo.Monto" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="interes" class="form-label">Interés:</label>
+                    <CurrencyInput id="interes"
+                                   class="form-control"
+                                   @bind-Value="nuevoPrestamo.Interes"
+                                   ReadOnly
+                                   Decimals="2"
+                                   Culture="CultureInfo.CurrentCulture" />
+                    <ValidationMessage For="() => nuevoPrestamo.Interes" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="fechaInicio" class="form-label">Fecha de Inicio:</label>
+                    <InputDate id="fechaInicio" class="form-control" @bind-Value="nuevoPrestamo.FechaDeInicio" @onchange="CalcularInteres" Disabled="@formDeshabilitado" />
+                    <ValidationMessage For="() => nuevoPrestamo.FechaDeInicio" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="duracion" class="form-label">Duración del Prestamo:</label>
+                    <InputDate id="duracion" class="form-control" @bind-Value="nuevoPrestamo.DuracionDelPrestamo" @onchange="CalcularInteres" Disabled="@formDeshabilitado" />
+                    <ValidationMessage For="() => nuevoPrestamo.DuracionDelPrestamo" class="text-danger" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <RadzenDropDown @bind-Value="nuevoPrestamo.Estado"
+                                    Data="estadoOpciones"
+                                    Class="form-control"
+                                    Placeholder="Seleccionar Estado"
+                                    Disabled="@formDeshabilitado" />
+                    <ValidationMessage For="() => nuevoPrestamo.Estado" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="tpiodecuta" class="form-label">Tipo de Cuota:</label>
+                    <RadzenDropDown @bind-Value="nuevoPrestamo.Tipo_de_cuota"
+                                    Data="cuotaOpciones"
+                                    Class="form-control"
+                                    Placeholder="Seleccionar Tipo de Cuota"
+                                    Disabled="@formDeshabilitado">
+                    </RadzenDropDown>
+                    <ValidationMessage For="() => nuevoPrestamo.Tipo_de_cuota" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="text-center">
+                <RadzenButton Text="Registrar Prestamo" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Click="ConfirmarRegistro" class="btn btn-success btn-lg" Disabled="@formDeshabilitado" />
+                <RadzenButton Text="Volver" Icon="Arrow_back" ButtonStyle="ButtonStyle.Danger" Click="atras" class="btn btn-danger btn-lg" />
+            </div>
+        </EditForm>
+    }
+</div>
+
+<ConfirmDialog @ref="dialog" />
+
+
+@code {
+    private Prestamo nuevoPrestamo = new Prestamo();
+    private List<Cliete> clientes = new List<Cliete>();
+    private List<ClienteConNombre> clientesConNombres = new List<ClienteConNombre>();  // Lista de clientes con nombre completo
+    private List<string> estadoOpciones = new List<string> { "Proceso" };
+    private List<string> cuotaOpciones = new List<string> { "Diario", "Semanal", "Mensual" };
+    private bool isLoading = false;
+    private bool formDeshabilitado = true;
+
+    private const decimal tasaInteresAnual = 0.05m; 
+
+    [Inject] protected PreloadService PreloadService { get; set; } = default!;
+
+    private async Task ShowLoadingDataAsync()
+    {
+        PreloadService.Show(SpinnerColor.Light, "Cargando...");
+        await Task.Delay(3000); // call the service/api
+        PreloadService.Hide();
+    }
+
+    private ConfirmDialog dialog = default!;
+
+    private async Task ConfirmarRegistro()
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "¿Está seguro de que desea Ingresar este Registro?",
+            message1: "Este Registro será agregado a la base de datos.",
+            message2: "¿Desea proceder?"
+        );
+
+        if (confirmation)
+        {
+            await EnviarFormulario();
+        }
+        else
+        {
+            // Acción si se cancela la confirmación
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowLoadingDataAsync();
+        var clientesObtenidos = await Http.GetFromJsonAsync<List<Cliete>>("https://localhost:7261/api/Clientes");
+        clientes = clientesObtenidos?.Where(c => c.Estado == "Activo").ToList() ?? new List<Cliete>();
+
+        clientesConNombres = clientes.Select(c => new ClienteConNombre
+        {
+            Id = c.Id,
+            NombreCompleto = $"{c.CNombre} {c.CApellidos}"
+        }).ToList();
+    }
+
+    private void OnClienteSeleccionado(object value)
+    {
+        var clienteSeleccionado = clientes.FirstOrDefault(c => c.Id == nuevoPrestamo.CId);
+        formDeshabilitado = clienteSeleccionado == null || clienteSeleccionado.Estado != "Activo";
+    }
+
+    private void CalcularInteres()
+    {
+        try
+        {
+            if (nuevoPrestamo.Monto.HasValue &&
+                nuevoPrestamo.FechaDeInicio.HasValue &&
+                nuevoPrestamo.DuracionDelPrestamo.HasValue)
+            {
+                var fechaInicio = nuevoPrestamo.FechaDeInicio.Value;
+                var fechaFin = nuevoPrestamo.DuracionDelPrestamo.Value;
+
+                if (fechaFin > fechaInicio)
+                {
+                    var duracionEnAnios = (fechaFin - fechaInicio).TotalDays / 365;
+                    var monto = nuevoPrestamo.Monto ?? 0;
+                    nuevoPrestamo.Interes = Math.Round(monto * tasaInteresAnual * (decimal)duracionEnAnios, 2);
+                }
+                else
+                {
+                    nuevoPrestamo.Interes = 0;
+                }
+            }
+            else
+            {
+                nuevoPrestamo.Interes = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en CalcularInteres: {ex.Message}");
+            nuevoPrestamo.Interes = 0;
+        }
+    }
+
+    private async Task EnviarFormulario()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7261/api/Prestamos", nuevoPrestamo);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ResetForm();
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Completado",
+                    Detail = "Registro Completado Correctamente",
+                    Duration = 4000
+                });
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No se pudo completar el registro",
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetForm()
+    {
+        nuevoPrestamo = new Prestamo();
+        formDeshabilitado = true;
+    }
+
+    private void atras()
+    {
+        navigate.NavigateTo("/getp");
+    }
+
+    public class ClienteConNombre
+    {
+        public int Id { get; set; }
+        public string NombreCompleto { get; set; }
+    }
+}
+
+
